@@ -1,18 +1,18 @@
 import 'package:flutter_crypto_wallet/application/coin_convert/coin_convert_provider.dart';
 import 'package:flutter_crypto_wallet/presentation/core/widgets/round_button.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
-import 'package:auto_route/auto_route.dart';
 
 class StatusPage extends ConsumerWidget {
   const StatusPage({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, ScopedReader watch) {
-    final state = watch(coinConvertNotifierProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(coinConvertNotifierProvider);
 
     return Scaffold(
         body: Center(
@@ -65,7 +65,7 @@ class StatusPage extends ConsumerWidget {
             RoundButton(
               text: 'Reintentar',
               onTap: () {
-                context.router.popUntilRouteWithName('ConvertRoute');
+                context.go('/convert');
               },
             ),
             SizedBox(
@@ -107,7 +107,7 @@ class StatusPage extends ConsumerWidget {
                 RoundButton(
                   text: 'Aceptar',
                   onTap: () {
-                    context.router.popUntilRouteWithName('HomeRoute');
+                    context.go('/');
                   },
                 ),
                 SizedBox(

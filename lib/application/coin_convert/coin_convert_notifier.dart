@@ -1,37 +1,51 @@
+import 'package:collection/collection.dart';
 import 'package:dartz/dartz.dart';
-import 'package:flutter_crypto_wallet/application/coin_list/coin_list_notifier.dart';
+
 import 'package:flutter_crypto_wallet/application/coin_list/coin_list_provider.dart';
 import 'package:flutter_crypto_wallet/domain/coin.dart';
-import 'package:flutter_crypto_wallet/domain/coin_failure.dart';
+
 import 'package:flutter_crypto_wallet/domain/i_coin_repository.dart';
+import 'package:flutter_crypto_wallet/repository/coin_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../presentation/core/models/confirm_model.dart';
+import '../coin_list/coin_list_state.dart';
+import 'coin_convert_state.dart';
 
-part 'coin_convert_notifier.freezed.dart';
-part 'coin_convert_state.dart';
+/// Notifier for managing the state of cryptocurrency conversions.
+/// Handles coin selection, amount input, validation, and conversion execution.
+class CoinConvertNotifier extends Notifier<CoinConvertState> {
 
-class CoinConvertNotifier extends StateNotifier<CoinConvertState> {
-  CoinConvertNotifier(this._coinRepository, this._read)
-      : super(CoinConvertState.initial());
+  ICoinRepository get _coinRepository => ref.read(coinRepositoryProvider);
 
-  final ICoinRepository _coinRepository;
-  final Reader _read;
-
-  void initialize() {
-    final coins = (_read(coinNotifierProvider) as Loaded).coins;
+  /// Builds the initial state based on available coins and portfolio.
+  /// Filters coins with amounts > 0 and sorts them by amount descending.
+  @override
+  CoinConvertState build() {
+    final coinState = ref.read(coinNotifierProvider);
+    if (coinState is! Loaded) {
+      return CoinConvertState.initial();
+    }
+    final coins = coinState.coins;
     final portafolio = coins
-        .where((coin) => coin.amount! > 0)
-        .sorted((a, b) => a.amount!.compareTo(b.amount!));
+    .where((coin) => coin.amount != null && coin.amount! > 0)
+    .sorted((a, b) => b.amount!.compareTo(a.amount!));
 
     if (portafolio.isNotEmpty) {
-      state = state.copyWith(
+      return CoinConvertState.initial().copyWith(
           all: coins,
           portafolio: portafolio.toList(),
           isLoading: false,
           from: portafolio.first,
-          to: portafolio.length > 1 ? portafolio[1] : coins.last);
+          to: portafolio.length > 1 ? portafolio[1] : coins.firstWhere((coin) => coin.id != portafolio.first.id, orElse: () => coins.last));
+    } else {
+      // Even if no portfolio coins, allow conversion by selecting first two available coins
+      return CoinConvertState.initial().copyWith(
+          all: coins,
+          portafolio: portafolio.toList(),
+          isLoading: false,
+          from: coins.isNotEmpty ? coins[0] : null,
+          to: coins.length > 1 ? coins[1] : null);
     }
   }
 
@@ -67,9 +81,9 @@ class CoinConvertNotifier extends StateNotifier<CoinConvertState> {
         coinTotal: coinTotal,
       );
     } else if (amount == 0) {
-      validation = const ValidationError.empty();
+      validation = const Empty();
     } else {
-      validation = const ValidationError.invalid();
+      validation = const Invalid();
     }
     state = state.copyWith(
         isLoading: false,
@@ -78,7 +92,7 @@ class CoinConvertNotifier extends StateNotifier<CoinConvertState> {
         isPreview: confirm != null);
   }
 
-  Future<void> save() async {
+  Future<bool> save() async {
     state = state.copyWith(
       isLoading: true,
       isPreview: false,
@@ -109,13 +123,15 @@ class CoinConvertNotifier extends StateNotifier<CoinConvertState> {
         await _coinRepository.updatePortafolio(updatedFrom, updatedTo);
 
     if (failureOrSuccess.isRight()) {
-      _read(coinNotifierProvider.notifier)
+      ref.read(coinNotifierProvider.notifier)
           .coinsChanged([updatedTo, updatedFrom]);
     }
 
     state = state.copyWith(
         isLoading: false,
         convertFailureOrSuccessOption: optionOf(failureOrSuccess));
+
+    return failureOrSuccess.isRight();
   }
 
   void onKeyboardDelete() {
@@ -166,8 +182,4 @@ class CoinConvertNotifier extends StateNotifier<CoinConvertState> {
   }
 }
 
-@freezed
-class ValidationError with _$ValidationError {
-  const factory ValidationError.empty() = Empty;
-  const factory ValidationError.invalid() = Invalid;
-}
+

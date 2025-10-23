@@ -1,8 +1,9 @@
-import 'package:animate_do/animate_do.dart';
-import 'package:auto_route/auto_route.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_crypto_wallet/application/coin_list/coin_list_notifier.dart';
+
+import 'package:go_router/go_router.dart';
 import 'package:flutter_crypto_wallet/application/coin_list/coin_list_provider.dart';
+import 'package:flutter_crypto_wallet/application/coin_list/coin_list_state.dart';
 import 'package:flutter_crypto_wallet/domain/coin.dart';
 import 'package:flutter_crypto_wallet/presentation/core/widgets/coin_item.dart';
 import 'package:flutter_crypto_wallet/presentation/core/widgets/critical_failure.dart';
@@ -11,25 +12,25 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lottie/lottie.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
-import '../../presentation/routes/router.gr.dart';
+
 import '../core/utils.dart';
 
 class BalancePage extends ConsumerWidget {
   const BalancePage({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, ScopedReader watch) {
-    final state = watch(coinNotifierProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(coinNotifierProvider);
     return state.map(
-        initial: (_) {
+        initial: () {
           return Container();
         },
-        loading: (_) => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         loaded: (e) => _SuccessContent(loaded: e),
         failure: (e) => CriticalFailure(
             color: Colors.white,
             onRetry: () {
-              context.read(coinNotifierProvider.notifier).getCoins();
+              ref.read(coinNotifierProvider.notifier).getCoins();
             }));
   }
 }
@@ -58,7 +59,7 @@ class __SuccessContentState extends State<_SuccessContent> {
           backgroundColor: _color,
           elevation: 0,
           centerTitle: true,
-          brightness: Brightness.dark,
+
           title: AnimatedCrossFade(
             crossFadeState: visibility
                 ? CrossFadeState.showFirst
@@ -89,7 +90,7 @@ class __SuccessContentState extends State<_SuccessContent> {
                   isDesktop: true,
                   total: Utils.getPrice(widget._loaded.totalDollars),
                 ),
-                Expanded(child: _BalanceSection(coins: widget._loaded.coins))
+                Expanded(child: _BalanceSection(coins: widget._loaded.coins, onRemoveCoin: _showRemoveCoinDialog))
               ],
             )
           : Stack(
@@ -118,26 +119,56 @@ class __SuccessContentState extends State<_SuccessContent> {
                         builder: (context, scrollController) {
                           return _BalanceSection(
                               scrollController: scrollController,
-                              coins: widget._loaded.coins);
+                              coins: widget._loaded.coins,
+                              onRemoveCoin: _showRemoveCoinDialog);
                         }))
               ],
             ),
+    );
+    }
+
+  void _showRemoveCoinDialog(BuildContext context, WidgetRef ref, Coin coin) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove ${coin.name} from Portfolio'),
+        content: Text('Are you sure you want to remove ${coin.name} (${coin.symbol}) from your portfolio?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(coinNotifierProvider.notifier).removeCoinFromPortfolio(coin.symbol);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _BalanceSection extends StatelessWidget {
-  const _BalanceSection(
-      {Key? key, ScrollController? scrollController, required List<Coin> coins})
-      : _scrollController = scrollController,
+  const _BalanceSection({
+    Key? key,
+    ScrollController? scrollController,
+    required List<Coin> coins,
+    required Function(BuildContext, WidgetRef, Coin) onRemoveCoin,
+  })  : _scrollController = scrollController,
         _coins = coins,
+        _onRemoveCoin = onRemoveCoin,
         super(key: key);
 
   final ScrollController? _scrollController;
   final List<Coin> _coins;
+  final Function(BuildContext, WidgetRef, Coin) _onRemoveCoin;
 
   @override
   Widget build(BuildContext context) {
+    final portfolioCoins = _coins.where((coin) => (coin.amount ?? 0) > 0).toList();
     return ClipRRect(
       borderRadius: const BorderRadius.only(
           topRight: Radius.circular(30), topLeft: Radius.circular(30)),
@@ -147,12 +178,19 @@ class _BalanceSection extends StatelessWidget {
           padding: EdgeInsets.only(top: 20.h),
           controller: _scrollController,
           itemBuilder: (context, index) {
-            return CoinItem(
-              coin: _coins[index],
-              isPortafolio: true,
+            final coin = portfolioCoins[index];
+            return Consumer(
+              builder: (context, ref, child) {
+                return CoinItem(
+                  coin: coin,
+                  isPortafolio: true,
+                  showAddButton: true,
+                  onAddToPortfolio: () => _onRemoveCoin(context, ref, coin),
+                );
+              },
             );
           },
-          itemCount: _coins.length,
+          itemCount: portfolioCoins.length,
         ),
       ),
     );
@@ -170,7 +208,7 @@ class _HeaderSection extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        ElasticIn(
+        Animate(
           child: SizedBox(
             height: isDesktop ? 1000.h : 500.h,
             child: Stack(
@@ -215,7 +253,7 @@ class _HeaderSection extends StatelessWidget {
         ),
         InkWell(
           onTap: () {
-            context.router.push(ConvertRoute());
+            context.go('/convert');
           },
           child: PhysicalModel(
             shadowColor: Colors.white,
@@ -249,7 +287,7 @@ class _HeaderSection extends StatelessWidget {
             ),
           ),
         )
-      ],
-    );
-  }
+        ],
+        );
+        }
 }

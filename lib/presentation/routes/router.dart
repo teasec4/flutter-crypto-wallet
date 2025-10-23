@@ -1,16 +1,26 @@
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter_crypto_wallet/presentation/pages/confirmation_page.dart';
 import 'package:flutter_crypto_wallet/presentation/pages/convert_page.dart';
 import 'package:flutter_crypto_wallet/presentation/pages/home_page.dart';
 import 'package:flutter_crypto_wallet/presentation/pages/status_page.dart';
+import 'package:go_router/go_router.dart';
 
-@MaterialAutoRouter(
-  replaceInRouteName: 'Page,Route',
-  routes: <AutoRoute>[
-    AutoRoute(page: HomePage, initial: true),
-    AutoRoute(page: ConvertPage),
-    AutoRoute(page: ConfirmationPage),
-    AutoRoute(page: StatusPage),
+final GoRouter appRouter = GoRouter(
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => HomePage(),
+    ),
+    GoRoute(
+      path: '/convert',
+      builder: (context, state) => const ConvertPage(),
+    ),
+    GoRoute(
+      path: '/confirmation',
+      builder: (context, state) => const ConfirmationPage(),
+    ),
+    GoRoute(
+      path: '/status',
+      builder: (context, state) => const StatusPage(),
+    ),
   ],
-)
-class $AppRouter {}
+);

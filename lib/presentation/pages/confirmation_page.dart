@@ -1,29 +1,30 @@
 import 'package:flutter_crypto_wallet/application/coin_convert/coin_convert_provider.dart';
 import 'package:flutter_crypto_wallet/presentation/core/widgets/round_button.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:auto_route/auto_route.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../presentation/routes/router.gr.dart';
-
-class ConfirmationPage extends StatelessWidget {
+class ConfirmationPage extends ConsumerStatefulWidget {
   const ConfirmationPage({Key? key}) : super(key: key);
-  final _color = const Color(0XFFF3A00FF);
 
   @override
+  ConsumerState<ConfirmationPage> createState() => _ConfirmationPageState();
+}
+
+class _ConfirmationPageState extends ConsumerState<ConfirmationPage> {
+  static const _color = const Color(0XFFF3A00FF);
+
   Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, watch, child) {
-        final state = watch(coinConvertNotifierProvider);
-        return Scaffold(
+    final state = ref.watch(coinConvertNotifierProvider);
+    return Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
             automaticallyImplyLeading: true,
-            brightness: Brightness.light,
+
             leading: IconButton(
               color: Colors.black,
               iconSize: 35.h,
@@ -91,11 +92,13 @@ class ConfirmationPage extends StatelessWidget {
                     ),
                   ),
                   RoundButton(
-                    text: 'Convertir ahora',
-                    onTap: () {
-                      context.read(coinConvertNotifierProvider.notifier).save();
-                      context.router.replace(const StatusRoute());
-                    },
+                  text: 'Convertir ahora',
+                  onTap: () async {
+                  final success = await ref.read(coinConvertNotifierProvider.notifier).save();
+                  if (success && mounted) {
+                  context.go('/status');
+                  }
+                  },
                   ),
                   SizedBox(
                     height: 20.h + (ScreenUtil().bottomBarHeight / 2),
@@ -105,8 +108,6 @@ class ConfirmationPage extends StatelessWidget {
             ),
           ),
         );
-      },
-    );
   }
 }
 
